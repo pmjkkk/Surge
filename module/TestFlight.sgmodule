@@ -1,8 +1,8 @@
 #!name=TestFlight 名额监控
-#!desc=定时监控 TestFlight 名额，仅在「满→有名额」时通知一次。在下方参数填入要监控的 ID（多个用英文逗号分隔，可加 #备注名）
+#!desc=定时监控 TestFlight 名额，仅在「满→有名额」时通知一次。notify 开启后每次运行都发汇总通知（用于确认脚本是否在跑，验证完建议关闭）
 #!category=工具
-#!arguments=ids:hmC52rdF#示例APP,b6X29Sva&interval:5
-#!arguments-desc=ids: 要监控的 TestFlight ID，多个用英文逗号分隔，可用「ID#备注」格式\ninterval: 检查间隔（分钟），默认 5
+#!arguments=ids:hmC52rdF#示例APP,b6X29Sva&interval:5&notify:false
+#!arguments-desc=ids: 要监控的 TestFlight ID，多个用英文逗号分隔，可用「ID#备注」格式\ninterval: 检查间隔（分钟），默认 5\nnotify: 每次运行是否发汇总通知（true/false），用于调试确认脚本是否运行，默认 false
 
 [Script]
-TestFlight名额监控 = type=cron,cronexp=*/%interval% * * * *,timeout=30,script-path=https://raw.githubusercontent.com/pmjkkk/Surge/main/script/TestFlight.js,argument=%ids%
+TestFlight名额监控 = type=cron,cronexp=*/%interval% * * * *,timeout=30,script-path=https://raw.githubusercontent.com/pmjkkk/Surge/main/script/TestFlight.js,argument=notify=%notify%&ids=%ids%
