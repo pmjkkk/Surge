@@ -3,8 +3,8 @@
  *
  * argument (query-string 格式):
  *   ids=ID1,ID2&debug=false
- *     ids   : TestFlight ID，多个用英文逗号分隔
- *     debug : true 时每次运行都发汇总通知，用于确认脚本是否在跑（默认 false）
+ *     ids   : TestFlight ID，多个用英文逗号分隔（必填）
+ *     debug : true 时每次运行都发汇总通知，用于确认脚本是否在跑（默认 false，留空亦视为 false）
  *
  * 名额通知：仅在「满 → 有名额」状态变化时通知一次，避免重复打扰
  */
@@ -24,12 +24,22 @@ const STATUS = {
   open:   { re: /要加入 Beta 版|To join the|开始测试|itms-beta:\/\/|join the beta/, tag: "🎉", text: "有名额", store: "open" }
 };
 
-// 解析 query-string
+// 默认参数
+const DEFAULTS = {
+  ids: "",
+  debug: "false"
+};
+
+// 解析 query-string，并与默认值合并
 function parseArg(raw) {
-  const o = {};
+  const o = Object.assign({}, DEFAULTS);
   raw.split("&").forEach((kv) => {
     const i = kv.indexOf("=");
-    if (i > 0) o[kv.slice(0, i).trim()] = kv.slice(i + 1).trim();
+    if (i > 0) {
+      const k = kv.slice(0, i).trim();
+      const v = kv.slice(i + 1).trim();
+      if (v !== "") o[k] = v;  // 空值不覆盖默认值
+    }
   });
   return o;
 }
@@ -86,7 +96,7 @@ function main() {
 
   const arg = parseArg(raw);
   const debug = arg.debug === "true";
-  const ids = (arg.ids || "").split(/\s*[,，;\n]\s*/).filter(Boolean);
+  const ids = arg.ids.split(/\s*[,，;\n]\s*/).filter(Boolean);
 
   if (ids.length === 0) { console.log("[TF] 未填写 ID"); return $done(); }
   console.log(`[TF] 检查 ${ids.length} 个: ${ids.join(", ")}`);
