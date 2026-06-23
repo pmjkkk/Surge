@@ -34,7 +34,7 @@ function parseArg(raw) {
   return o;
 }
 
-function checkOne(id, debug, summary, finish) {
+function checkOne(id, summary, finish) {
   const url = `https://testflight.apple.com/join/${id}`;
   const key = `tf_${id}`;
 
@@ -106,7 +106,7 @@ function main() {
     $done();
   };
 
-  ids.forEach((id) => checkOne(id, debug, summary, finish));
+  ids.forEach((id) => checkOne(id, summary, finish));
 }
 
 main();
