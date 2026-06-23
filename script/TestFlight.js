@@ -3,7 +3,7 @@
  *
  * argument (query-string 格式):
  *   ids=ID1,ID2&debug=false
- *     ids   : TestFlight ID，逗号分隔，可用「ID#备注」格式
+ *     ids   : TestFlight ID，多个用英文逗号分隔
  *     debug : true 时每次运行都发汇总通知，用于确认脚本是否在跑（默认 false）
  *
  * 名额通知：仅在「满 → 有名额」状态变化时通知一次，避免重复打扰
@@ -34,9 +34,7 @@ function parseArg(raw) {
   return o;
 }
 
-function checkOne(info, debug, summary, finish) {
-  const [id, name = ""] = info.split("#").map((s) => s.trim());
-  const label = name || id;
+function checkOne(id, debug, summary, finish) {
   const url = `https://testflight.apple.com/join/${id}`;
   const key = `tf_${id}`;
 
@@ -44,12 +42,12 @@ function checkOne(info, debug, summary, finish) {
     { url, headers: { "User-Agent": randomUA() }, timeout: 10 },
     (err, resp, data) => {
       if (err) {
-        summary.push(`⚠️ ${label}: 请求失败`);
+        summary.push(`⚠️ ${id}: 请求失败`);
         return finish();
       }
       if (resp.status !== 200) {
         const msg = resp.status === 404 ? "链接不存在" : `HTTP ${resp.status}`;
-        summary.push(`❓ ${label}: ${msg}`);
+        summary.push(`❓ ${id}: ${msg}`);
         if (resp.status === 404) $persistentStore.write("invalid", key);
         return finish();
       }
@@ -61,17 +59,17 @@ function checkOne(info, debug, summary, finish) {
       }
 
       if (!matched) {
-        summary.push(`❓ ${label}: 状态未知`);
+        summary.push(`❓ ${id}: 状态未知`);
         return finish();
       }
 
-      summary.push(`${matched.tag} ${label}: ${matched.text}`);
+      summary.push(`${matched.tag} ${id}: ${matched.text}`);
 
       // 仅在「非 open → open」时发名额通知
       if (matched.store === "open" && $persistentStore.read(key) !== "open") {
         $notification.post(
           "🎉 TestFlight 有名额了！",
-          name ? `${name} (${id})` : `ID: ${id}`,
+          `ID: ${id}`,
           "点击立即加入测试",
           { action: "open-url", url, sound: true }
         );
@@ -108,7 +106,7 @@ function main() {
     $done();
   };
 
-  ids.forEach((info) => checkOne(info, debug, summary, finish));
+  ids.forEach((id) => checkOne(id, debug, summary, finish));
 }
 
 main();
