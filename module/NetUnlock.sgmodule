@@ -6,4 +6,4 @@
 NetUnlock = type=generic,timeout=30,script-path=https://raw.githubusercontent.com/pmjkkk/Surge/main/script/NetUnlock.js
 
 [Panel]
-NetUnlock = title="解锁检测",content="点击刷新开始检测",style=info,icon=antenna.radiowaves.left.and.right,icon-color=#7446D8,script-name=NetUnlock,update-interval=0
+NetUnlock = title="AI解锁检测",content="点击刷新开始检测",style=info,icon=antenna.radiowaves.left.and.right,icon-color=#7446D8,script-name=NetUnlock,update-interval=0
