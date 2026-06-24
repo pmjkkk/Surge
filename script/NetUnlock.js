@@ -90,7 +90,6 @@ Promise.all([
     line('Netflix',  netflix.ok,  cc),
     line('Disney+',  disney.ok,   cc),
     line('YouTube',  proxy.ok,    cc),
-    '',
     line('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc),
     line('Claude',   claude.ok,   cc),
     line('Gemini',   gemini.ok,   cc),
