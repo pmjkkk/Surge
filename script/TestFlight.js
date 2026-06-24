@@ -1,12 +1,12 @@
 /**
  * TestFlight 名额监控 (Surge)
  *
- * 检测到有名额时立即通知，每次运行都检查，有名额就通知
- * 无防抖设计：TestFlight 名额稀缺，宁可多通知也不漏通知
+ * 检测到有名额时立即通知
+ * 每次运行都检查所有 ID，有名额就发通知
  *
- * argument (query-string 格式):
- *   ids=ID1,ID2
- *   ids: 要监控的 TestFlight ID，多个用英文逗号分隔（必填）
+ * argument: ids=ID1,ID2
+ *   在脚本编辑器中直接运行时，argument 为空，
+ *   脚本会发一条提示通知告知需要通过模块配置参数
  */
 
 const UA_LIST = [
@@ -18,9 +18,16 @@ const UA_LIST = [
 ];
 const randomUA = () => UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
 
+const RE_OPEN   = /要加入 Beta 版|To join the|开始测试|itms-beta:\/\/|join the beta/;
 const RE_FULL   = /版本的测试员已满|This beta is full|此 beta 版已额满/;
 const RE_CLOSED = /版本目前不接受任何新测试员|This beta isn't accepting any new testers/;
-const RE_OPEN   = /要加入 Beta 版|To join the|开始测试|itms-beta:\/\/|join the beta/;
+
+function notify(title, subtitle, body, url) {
+  const opts = url
+    ? { action: "open-url", url, sound: true }
+    : { sound: false };
+  $notification.post(title, subtitle, body, opts);
+}
 
 function checkOne(id, finish) {
   const url = `https://testflight.apple.com/join/${id}`;
@@ -29,34 +36,33 @@ function checkOne(id, finish) {
     { url, headers: { "User-Agent": randomUA() }, timeout: 10 },
     (err, resp, data) => {
       if (err) {
-        console.log(`[TF] ⚠️ ${id} 请求失败: ${err}`);
+        console.log(`[TF] ⚠️ ${id}: 请求失败 ${err}`);
+        notify("⚠️ TestFlight 监控", `ID: ${id}`, `请求失败: ${err}`);
         return finish();
       }
 
       if (resp.status === 404) {
-        console.log(`[TF] ❓ ${id} 链接不存在`);
+        console.log(`[TF] ❓ ${id}: 链接不存在`);
+        notify("⚠️ TestFlight 监控", `ID: ${id}`, "链接不存在，请检查 ID 是否正确");
         return finish();
       }
 
       if (resp.status !== 200) {
-        console.log(`[TF] ❓ ${id} HTTP ${resp.status}`);
+        console.log(`[TF] ❓ ${id}: HTTP ${resp.status}`);
+        notify("⚠️ TestFlight 监控", `ID: ${id}`, `HTTP ${resp.status}`);
         return finish();
       }
 
       if (RE_OPEN.test(data)) {
-        console.log(`[TF] 🎉 ${id} 有名额`);
-        $notification.post(
-          "🎉 TestFlight 有名额！",
-          `ID: ${id}`,
-          "点击立即加入",
-          { action: "open-url", url, sound: true }
-        );
+        console.log(`[TF] 🎉 ${id}: 有名额`);
+        notify("🎉 TestFlight 有名额！", `ID: ${id}`, "点击立即加入", url);
       } else if (RE_FULL.test(data)) {
-        console.log(`[TF] 🈵 ${id} 已满`);
+        console.log(`[TF] 🈵 ${id}: 已满`);
       } else if (RE_CLOSED.test(data)) {
-        console.log(`[TF] 🚫 ${id} 不接受新成员`);
+        console.log(`[TF] 🚫 ${id}: 不接受新成员`);
       } else {
-        console.log(`[TF] ❓ ${id} 状态未知`);
+        console.log(`[TF] ❓ ${id}: 状态未知`);
+        notify("⚠️ TestFlight 监控", `ID: ${id}`, "状态未知，请检查脚本正则是否需要更新");
       }
 
       finish();
@@ -67,19 +73,23 @@ function checkOne(id, finish) {
 function main() {
   const raw = (typeof $argument !== "undefined" && $argument) ? $argument.trim() : "";
 
+  // argument 为空：在脚本编辑器中直接运行，发通知提示
   if (!raw) {
-    console.log("[TF] 未配置 argument，请在模块参数中填入 TestFlight ID");
+    notify(
+      "⚠️ TestFlight 监控",
+      "未检测到参数",
+      "请通过模块安装并在参数中填写 TestFlight ID，不要直接在编辑器运行"
+    );
+    console.log("[TF] argument 为空，请通过模块配置参数后运行");
     return $done();
   }
 
-  // 解析 ids=xxx 格式，兼容直接传 ID 列表的情况
-  let idsRaw = raw;
-  if (raw.indexOf("ids=") === 0) {
-    idsRaw = raw.slice(4);
-  }
-
+  // 解析 ids=xxx 或直接传 ID 列表两种格式
+  const idsRaw = raw.startsWith("ids=") ? raw.slice(4) : raw;
   const ids = idsRaw.split(/\s*[,，;\n]\s*/).filter(Boolean);
+
   if (ids.length === 0) {
+    notify("⚠️ TestFlight 监控", "未填写有效 ID", "请在模块参数中填写 TestFlight ID");
     console.log("[TF] 未填写有效 ID");
     return $done();
   }
