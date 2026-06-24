@@ -66,18 +66,21 @@ function run() {
         return;
       }
 
-      var hasSpots = data.indexOf("itms-beta://") !== -1
-                  || data.indexOf("join the beta") !== -1
-                  || data.indexOf("要加入 Beta 版") !== -1;
-
       var isFull   = data.indexOf("This beta is full") !== -1
                   || data.indexOf("版本的测试员已满") !== -1
+                  || data.indexOf("此 Beta 版本的测试员已满") !== -1
                   || data.indexOf("此 beta 版已额满") !== -1;
 
       var isClosed = data.indexOf("isn't accepting") !== -1
                   || data.indexOf("版本目前不接受") !== -1;
 
-      if (hasSpots) {
+      // 有名额的唯一可靠标识：beta-status 里有「To join the / 要加入」
+      // itms-beta:// 在已满/有名额页面都存在，不可作为判断依据
+      var hasSpots = data.indexOf("To join the") !== -1
+                  || data.indexOf("要加入 Beta 版") !== -1
+                  || data.indexOf("join the beta") !== -1;
+
+      if (hasSpots && !isFull && !isClosed) {
         console.log("[TF] " + id + " 🎉 有名额");
         results[id] = "🎉 有名额";
         $notification.post(
