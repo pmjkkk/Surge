@@ -116,8 +116,31 @@ Promise.all([
 
   var gap = '   ';
 
+  // 计算字符串视觉宽度（CJK 字符占 2 列）
+  function vw(s) {
+    var w = 0;
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charCodeAt(i);
+      w += (c >= 0x1100 && (
+        c <= 0x115F ||
+        (c >= 0x2E80 && c <= 0xA4CF) ||
+        (c >= 0xAC00 && c <= 0xD7A3) ||
+        (c >= 0xF900 && c <= 0xFAFF) ||
+        (c >= 0xFF01 && c <= 0xFF60) ||
+        (c >= 0xFFE0 && c <= 0xFFE6)
+      )) ? 2 : 1;
+    }
+    return w;
+  }
+
+  var rowWidth = 28; // 1 + cell(12) + gap(3) + cell(12)
+  var left  = ' ◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知');
+  var right = ok + ' / ' + total + ' 解锁';
+  var spaces = Math.max(1, rowWidth - vw(left) - vw(right));
+  var firstLine = left + Array(spaces + 1).join(' ') + right;
+
   var content = [
-    ' ◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知') + '   ' + ok + ' / ' + total + ' 解锁',
+    firstLine,
     ' ' + cell('Netflix',  netflix.ok,  cc)               + gap + cell('Disney+', disney.ok,  cc),
     ' ' + cell('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc)  + gap + cell('YouTube', youtube.ok, cc),
     ' ' + cell('Claude',   claude.ok,   cc)               + gap + cell('Gemini',  gemini.ok,  cc)
