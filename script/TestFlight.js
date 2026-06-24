@@ -4,9 +4,11 @@
  * argument (query-string 格式):
  *   ids=ID1,ID2&debug=false
  *     ids   : TestFlight ID，多个用英文逗号分隔（必填）
- *     debug : true 时每次运行都发汇总通知，用于确认脚本是否在跑（默认 false，留空亦视为 false）
+ *     debug : true 时每次运行都发汇总通知，且强制通知有名额的 ID（默认 false）
  *
- * 名额通知：仅在「满 → 有名额」状态变化时通知一次，避免重复打扰
+ * 正常模式：仅在「满 → 有名额」状态变化时通知一次，避免重复打扰
+ * debug 模式：无视防抖，每次检测到有名额都发通知 + 发汇总
+ * 编辑器直接运行：argument 为空时自动进入 debug 模式，使用内置测试 ID
  */
 
 const UA_LIST = [
@@ -24,13 +26,8 @@ const STATUS = {
   open:   { re: /要加入 Beta 版|To join the|开始测试|itms-beta:\/\/|join the beta/, tag: "🎉", text: "有名额", store: "open" }
 };
 
-// 默认参数
-const DEFAULTS = {
-  ids: "",
-  debug: "false"
-};
+const DEFAULTS = { ids: "", debug: "false" };
 
-// 解析 query-string，并与默认值合并
 function parseArg(raw) {
   const o = Object.assign({}, DEFAULTS);
   raw.split("&").forEach((kv) => {
@@ -38,13 +35,13 @@ function parseArg(raw) {
     if (i > 0) {
       const k = kv.slice(0, i).trim();
       const v = kv.slice(i + 1).trim();
-      if (v !== "") o[k] = v;  // 空值不覆盖默认值
+      if (v !== "") o[k] = v;
     }
   });
   return o;
 }
 
-function checkOne(id, summary, finish) {
+function checkOne(id, debug, summary, finish) {
   const url = `https://testflight.apple.com/join/${id}`;
   const key = `tf_${id}`;
 
@@ -62,7 +59,6 @@ function checkOne(id, summary, finish) {
         return finish();
       }
 
-      // 匹配三种已知状态
       let matched = null;
       for (const s of Object.values(STATUS)) {
         if (s.re.test(data)) { matched = s; break; }
@@ -75,14 +71,17 @@ function checkOne(id, summary, finish) {
 
       summary.push(`${matched.tag} ${id}: ${matched.text}`);
 
-      // 仅在「非 open → open」时发名额通知
-      if (matched.store === "open" && $persistentStore.read(key) !== "open") {
-        $notification.post(
-          "🎉 TestFlight 有名额了！",
-          `ID: ${id}`,
-          "点击立即加入测试",
-          { action: "open-url", url, sound: true }
-        );
+      if (matched.store === "open") {
+        const last = $persistentStore.read(key);
+        // 正常模式：状态变化才通知；debug 模式：每次都通知
+        if (last !== "open" || debug) {
+          $notification.post(
+            "🎉 TestFlight 有名额了！",
+            `ID: ${id}`,
+            "点击立即加入测试",
+            { action: "open-url", url, sound: true }
+          );
+        }
       }
       $persistentStore.write(matched.store, key);
       finish();
@@ -92,14 +91,25 @@ function checkOne(id, summary, finish) {
 
 function main() {
   const raw = (typeof $argument !== "undefined" && $argument) ? $argument.trim() : "";
-  if (!raw) { console.log("[TF] 未配置参数"); return $done(); }
 
-  const arg = parseArg(raw);
-  const debug = arg.debug === "true";
-  const ids = arg.ids.split(/\s*[,，;\n]\s*/).filter(Boolean);
+  let ids, debug;
 
-  if (ids.length === 0) { console.log("[TF] 未填写 ID"); return $done(); }
-  console.log(`[TF] 检查 ${ids.length} 个: ${ids.join(", ")}`);
+  // argument 为空：脚本编辑器直接运行，进入 debug 模式 + 用内置测试 ID
+  if (!raw) {
+    console.log("[TF] 未检测到 argument，进入编辑器测试模式");
+    ids = ["tLcYLZJV"];  // 内置测试 ID（Tailscale，当前有名额）
+    debug = true;
+  } else {
+    const arg = parseArg(raw);
+    debug = arg.debug === "true";
+    ids = arg.ids.split(/\s*[,，;\n]\s*/).filter(Boolean);
+    if (ids.length === 0) {
+      console.log("[TF] 未填写 ID");
+      return $done();
+    }
+  }
+
+  console.log(`[TF] 检查 ${ids.length} 个: ${ids.join(", ")}${debug ? " [debug]" : ""}`);
 
   const summary = [];
   let pending = ids.length;
@@ -116,7 +126,7 @@ function main() {
     $done();
   };
 
-  ids.forEach((id) => checkOne(id, summary, finish));
+  ids.forEach((id) => checkOne(id, debug, summary, finish));
 }
 
 main();
