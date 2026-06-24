@@ -121,7 +121,7 @@ Promise.all([
   var sep = ' ─────────────────────── ';
 
   function cell(name, ok, cc) {
-    var mark = ok ? '● ' : '○ ';
+    var mark = ok ? '[+] ' : '[-] ';
     var tag  = (ok && cc) ? cc : '--';
     var pad  = (name + '       ').slice(0, 7);
     return mark + pad + ' ' + tag;
