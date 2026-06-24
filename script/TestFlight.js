@@ -4,6 +4,22 @@
  * 仅在检测到有名额时发送通知，其余状态只记录日志
  */
 
+var UA_LIST = [
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+];
+
+function randomUA() {
+  return UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
+}
+
+// TestFlight ID 格式：8 位字母数字
+function isValidId(id) {
+  return /^[A-Za-z0-9]{8}$/.test(id);
+}
+
 function run() {
   var arg = (typeof $argument !== "undefined" && $argument) ? String($argument).trim() : "";
 
@@ -14,19 +30,24 @@ function run() {
   }
 
   var idsRaw = (arg.indexOf("ids=") === 0) ? arg.slice(4) : arg;
-  var ids = idsRaw.split(",").map(function(s) {
-    return s.trim();
-  }).filter(function(s) {
-    return s.length > 0;
-  });
+  var allIds = idsRaw.split(",").map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+
+  // 过滤非法 ID（如未修改的默认提示文字）
+  var ids = allIds.filter(isValidId);
+  var invalid = allIds.filter(function(s) { return !isValidId(s); });
+
+  if (invalid.length > 0) {
+    console.log("[TF] 跳过非法 ID: " + invalid.join(", "));
+  }
 
   if (ids.length === 0) {
-    console.log("[TF] 未找到有效 ID，请检查模块参数");
+    console.log("[TF] 无有效 ID，请在模块参数中填写 8 位 TestFlight ID");
+    $notification.post("TestFlight 监控", "未配置有效 ID", "请在模块参数中填写 8 位 TestFlight ID");
     $done();
     return;
   }
 
-  console.log("[TF] 开始检查 " + ids.length + " 个 ID: " + ids.join(", "));
+  console.log("[TF] 开始检查 " + ids.length + " 个: " + ids.join(", "));
 
   var total = ids.length;
   var doneCount = 0;
@@ -46,11 +67,11 @@ function run() {
     $httpClient.get({
       url: url,
       headers: {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        "User-Agent": randomUA(),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
       },
-      timeout: 15
+      timeout: 10
     }, function(error, response, data) {
       if (error) {
         console.log("[TF] " + id + " 请求失败: " + error);
@@ -66,21 +87,27 @@ function run() {
         return;
       }
 
-      var isFull   = data.indexOf("This beta is full") !== -1
-                  || data.indexOf("版本的测试员已满") !== -1
-                  || data.indexOf("此 Beta 版本的测试员已满") !== -1
-                  || data.indexOf("此 beta 版已额满") !== -1;
+      // 先判断所有「无名额」状态，最后兜底才是有名额
+      // itms-beta:// 在已满/有名额页面均存在，不可用于判断
+      var isFull = data.indexOf("This beta is full") !== -1
+                || data.indexOf("版本的测试员已满") !== -1
+                || data.indexOf("此 Beta 版本的测试员已满") !== -1
+                || data.indexOf("此 beta 版已额满") !== -1;
 
       var isClosed = data.indexOf("isn't accepting") !== -1
                   || data.indexOf("版本目前不接受") !== -1;
 
-      // 有名额的唯一可靠标识：beta-status 里有「To join the / 要加入」
-      // itms-beta:// 在已满/有名额页面都存在，不可作为判断依据
       var hasSpots = data.indexOf("To join the") !== -1
                   || data.indexOf("要加入 Beta 版") !== -1
                   || data.indexOf("join the beta") !== -1;
 
-      if (hasSpots && !isFull && !isClosed) {
+      if (isFull) {
+        console.log("[TF] " + id + " 🈵 已满");
+        results[id] = "🈵 已满";
+      } else if (isClosed) {
+        console.log("[TF] " + id + " 🚫 不接受新成员");
+        results[id] = "🚫 不接受新成员";
+      } else if (hasSpots) {
         console.log("[TF] " + id + " 🎉 有名额");
         results[id] = "🎉 有名额";
         $notification.post(
@@ -89,12 +116,6 @@ function run() {
           "点击立即加入测试",
           { action: "open-url", url: url, sound: true }
         );
-      } else if (isFull) {
-        console.log("[TF] " + id + " 🈵 已满");
-        results[id] = "🈵 已满";
-      } else if (isClosed) {
-        console.log("[TF] " + id + " 🚫 不接受新成员");
-        results[id] = "🚫 不接受新成员";
       } else {
         console.log("[TF] " + id + " ❓ 状态未知");
         results[id] = "❓ 状态未知";
