@@ -121,7 +121,7 @@ Promise.all([
   var sep = ' ─────────────────────── ';
 
   function cell(name, ok, cc) {
-    var mark = ok ? '[+] ' : '[-] ';
+    var mark = ok ? '● ' : '○ ';
     var tag  = (ok && cc) ? cc : '--';
     var pad  = (name + '       ').slice(0, 7);
     return mark + pad + ' ' + tag;
@@ -129,13 +129,14 @@ Promise.all([
 
   var gap = '   ';
 
-  // 计算字符串视觉宽度（CJK 字符占 2 列）
+  // 计算字符串视觉宽度（CJK + 几何符号占 2 列）
   function vw(s) {
     var w = 0;
     for (var i = 0; i < s.length; i++) {
       var c = s.charCodeAt(i);
       w += (c >= 0x1100 && (
         c <= 0x115F ||
+        (c >= 0x2500 && c <= 0x25FF) ||
         (c >= 0x2E80 && c <= 0xA4CF) ||
         (c >= 0xAC00 && c <= 0xD7A3) ||
         (c >= 0xF900 && c <= 0xFAFF) ||
@@ -146,7 +147,7 @@ Promise.all([
     return w;
   }
 
-  var rowWidth = 28; // 1 + cell(12) + gap(3) + cell(12)
+  var rowWidth = 30; // 1(indent) + cell(13) + gap(3) + cell(13)
   var left  = ' ◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知');
   var right = ok + ' / ' + total + ' 解锁';
   var spaces = Math.max(1, rowWidth - vw(left) - vw(right));
