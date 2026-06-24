@@ -30,12 +30,13 @@ function run() {
 
   var total = ids.length;
   var doneCount = 0;
+  var results = {};
 
   function oneDone() {
     doneCount += 1;
     if (doneCount >= total) {
       console.log("[TF] 全部检查完成");
-      $done();
+      $done({ results: results });
     }
   }
 
@@ -53,12 +54,14 @@ function run() {
     }, function(error, response, data) {
       if (error) {
         console.log("[TF] " + id + " 请求失败: " + error);
+        results[id] = "⚠️ 请求失败";
         oneDone();
         return;
       }
 
       if (response.status !== 200) {
         console.log("[TF] " + id + " HTTP " + response.status);
+        results[id] = "⚠️ HTTP " + response.status;
         oneDone();
         return;
       }
@@ -76,6 +79,7 @@ function run() {
 
       if (hasSpots) {
         console.log("[TF] " + id + " 🎉 有名额");
+        results[id] = "🎉 有名额";
         $notification.post(
           "🎉 TestFlight 有名额！",
           "ID: " + id,
@@ -84,10 +88,13 @@ function run() {
         );
       } else if (isFull) {
         console.log("[TF] " + id + " 🈵 已满");
+        results[id] = "🈵 已满";
       } else if (isClosed) {
         console.log("[TF] " + id + " 🚫 不接受新成员");
+        results[id] = "🚫 不接受新成员";
       } else {
         console.log("[TF] " + id + " ❓ 状态未知");
+        results[id] = "❓ 状态未知";
       }
 
       oneDone();
