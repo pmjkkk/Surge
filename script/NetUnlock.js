@@ -1,12 +1,10 @@
 /**
  * NetUnlock - 流媒体与 AI 解锁检测
  * Surge Panel 版
- * 检测 Netflix / Disney+ / YouTube / ChatGPT / Claude / Gemini
  */
 
 var UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
-// 封装 $httpClient.get 为 Promise 风格
 function fetch(options) {
   return new Promise(function(resolve) {
     $httpClient.get(options, function(error, response, data) {
@@ -16,7 +14,6 @@ function fetch(options) {
   });
 }
 
-// 获取代理 IP 归属地
 function fetchProxy() {
   return fetch({
     url: 'http://ip-api.com/json/?lang=zh-CN&fields=status,countryCode,country',
@@ -27,13 +24,12 @@ function fetchProxy() {
     try {
       var d = JSON.parse(res.data);
       return { ok: d.status === 'success', cc: d.countryCode || 'XX', country: d.country || '' };
-    } catch (e) {
+    } catch(e) {
       return { ok: false, cc: 'XX', country: '' };
     }
   });
 }
 
-// Netflix
 function checkNetflix() {
   return fetch({
     url: 'https://www.netflix.com/title/70143836',
@@ -44,7 +40,6 @@ function checkNetflix() {
   });
 }
 
-// Disney+
 function checkDisney() {
   return fetch({
     url: 'https://www.disneyplus.com',
@@ -55,7 +50,6 @@ function checkDisney() {
   });
 }
 
-// ChatGPT（返回解锁地区）
 function checkChatGPT() {
   return fetch({
     url: 'https://chatgpt.com/cdn-cgi/trace',
@@ -67,7 +61,6 @@ function checkChatGPT() {
   });
 }
 
-// Claude
 function checkClaude() {
   return fetch({
     url: 'https://claude.ai/login',
@@ -78,7 +71,6 @@ function checkClaude() {
   });
 }
 
-// Gemini
 function checkGemini() {
   return fetch({
     url: 'https://gemini.google.com/app',
@@ -89,15 +81,14 @@ function checkGemini() {
   });
 }
 
-// 格式化一行结果
-function row(icon, name, ok, extra) {
-  var status = ok ? '✅' : '❌';
-  var line = status + ' ' + name;
-  if (ok && extra) line += '  [' + extra + ']';
-  return line;
+// 格式化一行：对齐名称，右侧显示状态和地区
+function row(name, ok, cc) {
+  var tag = ok ? '○' : '×';
+  var label = (name + '          ').slice(0, 10);
+  var region = (ok && cc) ? cc : '---';
+  return tag + '  ' + label + region;
 }
 
-// 主流程
 Promise.all([
   fetchProxy(),
   checkNetflix(),
@@ -114,52 +105,44 @@ Promise.all([
   var gemini  = results[5];
 
   var cc = proxy.cc;
-  var proxyLine = '📍 节点地区：' + (proxy.ok ? proxy.country + '  ' + cc : '获取失败');
-
-  var streamLines = [
-    row('', 'YouTube',  proxy.ok,   cc),
-    row('', 'Netflix',  netflix.ok, cc),
-    row('', 'Disney+',  disney.ok,  cc)
-  ];
-
-  var aiLines = [
-    row('', 'ChatGPT',  chatgpt.ok, chatgpt.cc || cc),
-    row('', 'Claude',   claude.ok,  cc),
-    row('', 'Gemini',   gemini.ok,  cc)
-  ];
-
-  var allOk = [netflix.ok, disney.ok, proxy.ok, chatgpt.ok, claude.ok, gemini.ok];
-  var okCount = allOk.filter(Boolean).length;
-  var total = allOk.length;
 
   var now = new Date();
   var timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
+  var allOk = [proxy.ok, netflix.ok, disney.ok, chatgpt.ok, claude.ok, gemini.ok];
+  var okCount = allOk.filter(Boolean).length;
+  var total = allOk.length;
+
   var content = [
-    proxyLine,
+    '地区  ' + (proxy.ok ? proxy.country + ' · ' + cc : '获取失败'),
     '',
-    '── 流媒体 ──────────────',
-    streamLines.join('\n'),
+    'STREAMING',
+    row('YouTube',  proxy.ok,   cc),
+    row('Netflix',  netflix.ok, cc),
+    row('Disney+',  disney.ok,  cc),
     '',
-    '── AI 服务 ─────────────',
-    aiLines.join('\n'),
+    'AI',
+    row('ChatGPT',  chatgpt.ok, chatgpt.cc || cc),
+    row('Claude',   claude.ok,  cc),
+    row('Gemini',   gemini.ok,  cc),
     '',
-    '🕐 ' + timeStr + '  解锁 ' + okCount + '/' + total
+    timeStr + '   ' + okCount + ' / ' + total + ' 已解锁'
   ].join('\n');
 
   var style = okCount === total ? 'good' : okCount === 0 ? 'error' : 'info';
 
   $done({
-    title: '解锁检测  ' + okCount + '/' + total,
+    title: '解锁检测',
     content: content,
     style: style,
     icon: 'antenna.radiowaves.left.and.right',
     'icon-color': okCount === total ? '#2F9E58' : okCount === 0 ? '#D64545' : '#7446D8'
   });
+
 }).catch(function(e) {
   $done({
     title: '解锁检测',
-    content: '检测失败: ' + e,
+    content: '检测出错\n' + e,
     style: 'error'
   });
 });
