@@ -1,0 +1,9 @@
+#!name=解锁检测
+#!desc=检测流媒体（Netflix / Disney+ / YouTube）与 AI 服务（ChatGPT / Claude / Gemini）的解锁情况
+#!category=工具
+
+[Script]
+NetUnlock = type=generic,timeout=30,script-path=https://raw.githubusercontent.com/pmjkkk/Surge/main/script/NetUnlock.js
+
+[Panel]
+NetUnlock = title="解锁检测",content="点击刷新开始检测",style=info,icon=antenna.radiowaves.left.and.right,icon-color=#7446D8,script-name=NetUnlock,update-interval=0
