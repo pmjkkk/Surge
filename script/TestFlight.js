@@ -1,6 +1,6 @@
 /**
  * TestFlight 名额监控
- * $argument 格式: ids=ID1,ID2
+ * $argument 格式: ids=ID1,ID2&log=false
  * 仅在检测到有名额时发送通知，其余状态只记录日志
  */
 
@@ -15,29 +15,45 @@ function randomUA() {
   return UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
 }
 
-// TestFlight ID 格式：8 位字母数字
 function isValidId(id) {
   return /^[A-Za-z0-9]{8}$/.test(id);
 }
 
-function run() {
-  var arg = (typeof $argument !== "undefined" && $argument) ? String($argument).trim() : "";
+function parseArg(raw) {
+  var result = {};
+  raw.split("&").forEach(function(kv) {
+    var i = kv.indexOf("=");
+    if (i > 0) {
+      result[kv.slice(0, i).trim()] = kv.slice(i + 1).trim();
+    }
+  });
+  return result;
+}
 
-  if (!arg) {
+function run() {
+  var raw = (typeof $argument !== "undefined" && $argument) ? String($argument).trim() : "";
+
+  if (!raw) {
     console.log("[TF] argument 为空，请检查模块配置");
     $done();
     return;
   }
 
-  var idsRaw = (arg.indexOf("ids=") === 0) ? arg.slice(4) : arg;
+  var arg = parseArg(raw);
+  var enableLog = (arg.log === "true");
+
+  function log(msg) {
+    if (enableLog) console.log(msg);
+  }
+
+  var idsRaw = arg.ids || raw;
   var allIds = idsRaw.split(",").map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
 
-  // 过滤非法 ID（如未修改的默认提示文字）
   var ids = allIds.filter(isValidId);
   var invalid = allIds.filter(function(s) { return !isValidId(s); });
 
   if (invalid.length > 0) {
-    console.log("[TF] 跳过非法 ID: " + invalid.join(", "));
+    log("[TF] 跳过非法 ID: " + invalid.join(", "));
   }
 
   if (ids.length === 0) {
@@ -47,7 +63,7 @@ function run() {
     return;
   }
 
-  console.log("[TF] 开始检查 " + ids.length + " 个: " + ids.join(", "));
+  log("[TF] 开始检查 " + ids.length + " 个: " + ids.join(", "));
 
   var total = ids.length;
   var doneCount = 0;
@@ -56,7 +72,7 @@ function run() {
   function oneDone() {
     doneCount += 1;
     if (doneCount >= total) {
-      console.log("[TF] 全部检查完成");
+      log("[TF] 全部检查完成");
       $done({ results: results });
     }
   }
@@ -74,21 +90,19 @@ function run() {
       timeout: 10
     }, function(error, response, data) {
       if (error) {
-        console.log("[TF] " + id + " 请求失败: " + error);
+        log("[TF] " + id + " 请求失败: " + error);
         results[id] = "⚠️ 请求失败";
         oneDone();
         return;
       }
 
       if (response.status !== 200) {
-        console.log("[TF] " + id + " HTTP " + response.status);
+        log("[TF] " + id + " HTTP " + response.status);
         results[id] = "⚠️ HTTP " + response.status;
         oneDone();
         return;
       }
 
-      // 先判断所有「无名额」状态，最后兜底才是有名额
-      // itms-beta:// 在已满/有名额页面均存在，不可用于判断
       var isFull = data.indexOf("This beta is full") !== -1
                 || data.indexOf("版本的测试员已满") !== -1
                 || data.indexOf("此 Beta 版本的测试员已满") !== -1
@@ -102,13 +116,13 @@ function run() {
                   || data.indexOf("join the beta") !== -1;
 
       if (isFull) {
-        console.log("[TF] " + id + " 🈵 已满");
+        log("[TF] " + id + " 🈵 已满");
         results[id] = "🈵 已满";
       } else if (isClosed) {
-        console.log("[TF] " + id + " 🚫 不接受新成员");
+        log("[TF] " + id + " 🚫 不接受新成员");
         results[id] = "🚫 不接受新成员";
       } else if (hasSpots) {
-        console.log("[TF] " + id + " 🎉 有名额");
+        log("[TF] " + id + " 🎉 有名额");
         results[id] = "🎉 有名额";
         $notification.post(
           "🎉 TestFlight 有名额！",
@@ -117,7 +131,7 @@ function run() {
           { action: "open-url", url: url, sound: true }
         );
       } else {
-        console.log("[TF] " + id + " ❓ 状态未知");
+        log("[TF] " + id + " ❓ 状态未知");
         results[id] = "❓ 状态未知";
       }
 
