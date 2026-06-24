@@ -34,7 +34,6 @@ function run() {
   var raw = (typeof $argument !== "undefined" && $argument) ? String($argument).trim() : "";
 
   if (!raw) {
-    console.log("[TF] argument 为空，请检查模块配置");
     $done();
     return;
   }
@@ -57,7 +56,7 @@ function run() {
   }
 
   if (ids.length === 0) {
-    console.log("[TF] 无有效 ID，请在模块参数中填写 8 位 TestFlight ID");
+    log("[TF] 无有效 ID，请在模块参数中填写 8 位 TestFlight ID");
     $notification.post("TestFlight 监控", "未配置有效 ID", "请在模块参数中填写 8 位 TestFlight ID");
     $done();
     return;
