@@ -29,15 +29,13 @@ function fetchProxy() {
 }
 
 function checkNetflix() {
-  // 跟随重定向，解锁时重定向到本地化 URL（如 /jp-en/title/...）
-  return fetch({ url: 'https://www.netflix.com/title/70143836', timeout: 6000, headers: { 'User-Agent': UA } })
-    .then(function(res) {
-      return { ok: !res.error && res.status === 200 };
-    });
+  // robots.txt：轻量（3.7KB），封锁地区无法访问
+  return fetch({ url: 'https://www.netflix.com/robots.txt', timeout: 6000, headers: { 'User-Agent': UA } })
+    .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
 function checkDisney() {
-  // 响应头含 physical-location 表示可访问，封锁时返回 403 或无此 header
+  // 响应头含 physical-location 表示可访问
   return new Promise(function(resolve) {
     $httpClient.get({
       url: 'https://www.disneyplus.com',
@@ -52,7 +50,7 @@ function checkDisney() {
 }
 
 function checkChatGPT() {
-  // cdn-cgi/trace 返回 loc=XX，封锁地区不包含此字段
+  // cdn-cgi/trace：250B，可提取解锁地区 loc=XX
   return fetch({ url: 'https://chatgpt.com/cdn-cgi/trace', timeout: 5000 })
     .then(function(res) {
       if (res.error || !res.data) return { ok: false, cc: '' };
@@ -62,24 +60,27 @@ function checkChatGPT() {
 }
 
 function checkClaude() {
-  // robots.txt：可访问返回 200，Cloudflare 地区封锁返回 403
+  // robots.txt：408B，Cloudflare 封锁时返回 403
   return fetch({ url: 'https://claude.ai/robots.txt', timeout: 6000, headers: { 'User-Agent': UA } })
     .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
 function checkGemini() {
-  return fetch({ url: 'https://gemini.google.com', timeout: 5000, headers: { 'User-Agent': UA } })
+  // robots.txt：116B，最轻量
+  return fetch({ url: 'https://gemini.google.com/robots.txt', timeout: 5000, headers: { 'User-Agent': UA } })
     .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
 function checkTikTok() {
-  return fetch({ url: 'https://www.tiktok.com', timeout: 5000, headers: { 'User-Agent': UA } })
+  // favicon.ico：842B，轻量
+  return fetch({ url: 'https://www.tiktok.com/favicon.ico', timeout: 5000, headers: { 'User-Agent': UA } })
     .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
 function checkYouTube() {
-  return fetch({ url: 'https://www.youtube.com/premium', timeout: 5000, headers: { 'User-Agent': UA } })
-    .then(function(res) { return { ok: !res.error && res.status === 200 }; });
+  // generate_204：0B，最轻量，204 即可访问
+  return fetch({ url: 'https://www.youtube.com/generate_204', timeout: 5000, headers: { 'User-Agent': UA } })
+    .then(function(res) { return { ok: !res.error && res.status === 204 }; });
 }
 
 // 固定宽度行：名称左对齐 + 地区 + 状态
