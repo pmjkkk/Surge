@@ -84,15 +84,21 @@ Promise.all([
   var ok = all.filter(Boolean).length;
   var total = all.length;
 
+  // 两列三行布局
+  // 左列：Netflix / ChatGPT / Claude
+  // 右列：Disney+ / YouTube / Gemini
+  function cell(name, ok, cc) {
+    var mark = ok ? '✓' : '✗';
+    var region = (ok && cc) ? ' ' + cc : '   ';
+    return name + region + ' ' + mark;
+  }
+
   var content = [
     cc + '  ' + proxy.country,
     '',
-    line('Netflix',  netflix.ok,  cc),
-    line('Disney+',  disney.ok,   cc),
-    line('YouTube',  proxy.ok,    cc),
-    line('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc),
-    line('Claude',   claude.ok,   cc),
-    line('Gemini',   gemini.ok,   cc),
+    cell('Netflix', netflix.ok, cc) + '    ' + cell('Disney+', disney.ok, cc),
+    cell('ChatGPT', chatgpt.ok, chatgpt.cc || cc) + '    ' + cell('YouTube', proxy.ok, cc),
+    cell('Claude',  claude.ok,  cc) + '    ' + cell('Gemini',  gemini.ok,  cc),
     '',
     ok + ' / ' + total + '   ' + t
   ].join('\n');
