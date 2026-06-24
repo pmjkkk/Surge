@@ -14,6 +14,9 @@ function fetch(options) {
   });
 }
 
+// Claude 和 ChatGPT 封锁地区列表
+var AI_BLOCKED = { CN:1, HK:1, RU:1, BY:1, IR:1, KP:1, SY:1, CU:1 };
+
 function fetchProxy() {
   return fetch({
     url: 'http://ip-api.com/json/?lang=zh-CN&fields=status,countryCode,country',
@@ -29,58 +32,62 @@ function fetchProxy() {
 }
 
 function checkNetflix() {
-  // robots.txt：轻量（3.7KB），封锁地区无法访问
-  return fetch({ url: 'https://www.netflix.com/robots.txt', timeout: 6000, headers: { 'User-Agent': UA } })
-    .then(function(res) { return { ok: !res.error && res.status === 200 }; });
-}
-
-function checkDisney() {
-  // 响应头含 physical-location 表示可访问
-  return new Promise(function(resolve) {
-    $httpClient.get({
-      url: 'https://www.disneyplus.com',
-      timeout: 6000,
-      headers: { 'User-Agent': UA }
-    }, function(error, response) {
-      if (error) return resolve({ ok: false });
-      var loc = response.headers && (response.headers['physical-location'] || response.headers['Physical-Location']);
-      resolve({ ok: !error && response.status === 200 && !!loc });
-    });
-  });
-}
-
-function checkChatGPT() {
-  // cdn-cgi/trace：250B，可提取解锁地区 loc=XX
-  return fetch({ url: 'https://chatgpt.com/cdn-cgi/trace', timeout: 5000 })
+  // 跟随重定向，解锁时页面包含 playerModel 或重定向到本地化路径
+  return fetch({ url: 'https://www.netflix.com/title/70143836', timeout: 8000, headers: { 'User-Agent': UA } })
     .then(function(res) {
-      if (res.error || !res.data) return { ok: false, cc: '' };
-      var m = res.data.match(/loc=([A-Z]{2})/);
-      return m ? { ok: true, cc: m[1] } : { ok: false, cc: '' };
+      if (res.error || res.status !== 200) return { ok: false };
+      return { ok: res.data.indexOf('playerModel') !== -1 || res.data.indexOf('jawSummary') !== -1 };
     });
-}
-
-function checkClaude() {
-  // robots.txt：408B，Cloudflare 封锁时返回 403
-  return fetch({ url: 'https://claude.ai/robots.txt', timeout: 6000, headers: { 'User-Agent': UA } })
-    .then(function(res) { return { ok: !res.error && res.status === 200 }; });
-}
-
-function checkGemini() {
-  // robots.txt：116B，最轻量
-  return fetch({ url: 'https://gemini.google.com/robots.txt', timeout: 5000, headers: { 'User-Agent': UA } })
-    .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
 function checkTikTok() {
-  // favicon.ico：842B，轻量
-  return fetch({ url: 'https://www.tiktok.com/favicon.ico', timeout: 5000, headers: { 'User-Agent': UA } })
+  // 主域名返回 200 = 可访问
+  return fetch({ url: 'https://www.tiktok.com', timeout: 5000, headers: { 'User-Agent': UA } })
     .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
 function checkYouTube() {
-  // generate_204：0B，最轻量，204 即可访问
-  return fetch({ url: 'https://www.youtube.com/generate_204', timeout: 5000, headers: { 'User-Agent': UA } })
-    .then(function(res) { return { ok: !res.error && res.status === 204 }; });
+  // /premium 页面有价格信息 = 该地区支持 YouTube Premium
+  return fetch({ url: 'https://www.youtube.com/premium', timeout: 6000, headers: { 'User-Agent': UA } })
+    .then(function(res) {
+      if (res.error || res.status !== 200) return { ok: false };
+      // 封锁/不支持地区页面不含价格，正常地区含月付/价格信息
+      return { ok: res.data.indexOf('month') !== -1 || res.data.indexOf('/mo') !== -1 || res.data.indexOf('per month') !== -1 };
+    });
+}
+
+function checkChatGPT() {
+  // cdn-cgi/trace 提取 loc，黑名单判断
+  return fetch({ url: 'https://chatgpt.com/cdn-cgi/trace', timeout: 5000 })
+    .then(function(res) {
+      if (res.error || !res.data) return { ok: false, cc: '' };
+      var m = res.data.match(/loc=([A-Z]{2})/);
+      if (!m) return { ok: false, cc: '' };
+      var cc = m[1];
+      return { ok: !AI_BLOCKED[cc], cc: cc };
+    });
+}
+
+function checkClaude() {
+  // cdn-cgi/trace 提取 loc，黑名单判断（HK 封锁）
+  return fetch({ url: 'https://claude.ai/cdn-cgi/trace', timeout: 6000 })
+    .then(function(res) {
+      if (res.error || !res.data) return { ok: false, cc: '' };
+      var m = res.data.match(/loc=([A-Z]{2})/);
+      if (!m) return { ok: false, cc: '' };
+      var cc = m[1];
+      return { ok: !AI_BLOCKED[cc], cc: cc };
+    });
+}
+
+function checkGemini() {
+  // /app 正常页面约 700KB，封锁/异常页面极小
+  return fetch({ url: 'https://gemini.google.com/app', timeout: 6000, headers: { 'User-Agent': UA } })
+    .then(function(res) {
+      if (res.error || res.status !== 200) return { ok: false };
+      // 正常页面 > 100KB，封锁时返回极小的错误页
+      return { ok: res.data && res.data.length > 100000 };
+    });
 }
 
 // 固定宽度行：名称左对齐 + 地区 + 状态
@@ -148,7 +155,7 @@ Promise.all([
   var content = [
     firstLine,
     ' ' + cell('Netflix',  netflix.ok,  cc)               + gap + cell('ChatGPT', chatgpt.ok, chatgpt.cc || cc),
-    ' ' + cell('TikTok',   tiktok.ok,   cc)               + gap + cell('Claude',  claude.ok,  cc),
+    ' ' + cell('TikTok',   tiktok.ok,   cc)               + gap + cell('Claude',  claude.ok,  claude.cc  || cc),
     ' ' + cell('YouTube',  youtube.ok,  cc)               + gap + cell('Gemini',  gemini.ok,  cc)
   ].join('\n');
 
