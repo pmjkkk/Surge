@@ -29,16 +29,30 @@ function fetchProxy() {
 }
 
 function checkNetflix() {
-  return fetch({ url: 'https://www.netflix.com/title/70143836', timeout: 5000, headers: { 'User-Agent': UA } })
-    .then(function(res) { return { ok: !res.error && res.status === 200 }; });
+  // 跟随重定向，解锁时重定向到本地化 URL（如 /jp-en/title/...）
+  return fetch({ url: 'https://www.netflix.com/title/70143836', timeout: 6000, headers: { 'User-Agent': UA } })
+    .then(function(res) {
+      return { ok: !res.error && res.status === 200 };
+    });
 }
 
 function checkDisney() {
-  return fetch({ url: 'https://www.disneyplus.com', timeout: 5000, headers: { 'User-Agent': UA } })
-    .then(function(res) { return { ok: !res.error && res.status !== 403 }; });
+  // 响应头含 physical-location 表示可访问，封锁时返回 403 或无此 header
+  return new Promise(function(resolve) {
+    $httpClient.get({
+      url: 'https://www.disneyplus.com',
+      timeout: 6000,
+      headers: { 'User-Agent': UA }
+    }, function(error, response) {
+      if (error) return resolve({ ok: false });
+      var loc = response.headers && (response.headers['physical-location'] || response.headers['Physical-Location']);
+      resolve({ ok: !error && response.status === 200 && !!loc });
+    });
+  });
 }
 
 function checkChatGPT() {
+  // cdn-cgi/trace 返回 loc=XX，封锁地区不包含此字段
   return fetch({ url: 'https://chatgpt.com/cdn-cgi/trace', timeout: 5000 })
     .then(function(res) {
       if (res.error || !res.data) return { ok: false, cc: '' };
@@ -48,12 +62,18 @@ function checkChatGPT() {
 }
 
 function checkClaude() {
-  return fetch({ url: 'https://claude.ai/login', timeout: 6000, headers: { 'User-Agent': UA } })
+  // robots.txt：可访问返回 200，Cloudflare 地区封锁返回 403
+  return fetch({ url: 'https://claude.ai/robots.txt', timeout: 6000, headers: { 'User-Agent': UA } })
     .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
 function checkGemini() {
-  return fetch({ url: 'https://gemini.google.com/app', timeout: 5000, headers: { 'User-Agent': UA } })
+  return fetch({ url: 'https://gemini.google.com', timeout: 5000, headers: { 'User-Agent': UA } })
+    .then(function(res) { return { ok: !res.error && res.status === 200 }; });
+}
+
+function checkYouTube() {
+  return fetch({ url: 'https://www.youtube.com/premium', timeout: 5000, headers: { 'User-Agent': UA } })
     .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
@@ -71,16 +91,17 @@ Promise.all([
   checkDisney(),
   checkChatGPT(),
   checkClaude(),
-  checkGemini()
+  checkGemini(),
+  checkYouTube()
 ]).then(function(r) {
   var proxy = r[0], netflix = r[1], disney = r[2];
-  var chatgpt = r[3], claude = r[4], gemini = r[5];
+  var chatgpt = r[3], claude = r[4], gemini = r[5], youtube = r[6];
   var cc = proxy.cc;
 
   var now = new Date();
   var t = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
-  var all = [proxy.ok, netflix.ok, disney.ok, chatgpt.ok, claude.ok, gemini.ok];
+  var all = [proxy.ok, netflix.ok, disney.ok, chatgpt.ok, claude.ok, gemini.ok, youtube.ok];
   var ok = all.filter(Boolean).length;
   var total = all.length;
 
@@ -98,9 +119,9 @@ Promise.all([
   var content = [
     ' ◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知'),
     sep,
-    ' ' + cell('Netflix',  netflix.ok,  cc)              + gap + cell('Disney+', disney.ok,  cc),
-    ' ' + cell('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc) + gap + cell('YouTube', proxy.ok,   cc),
-    ' ' + cell('Claude',   claude.ok,   cc)              + gap + cell('Gemini',  gemini.ok,   cc),
+    ' ' + cell('Netflix',  netflix.ok,  cc)               + gap + cell('Disney+', disney.ok,  cc),
+    ' ' + cell('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc)  + gap + cell('YouTube', youtube.ok, cc),
+    ' ' + cell('Claude',   claude.ok,   cc)               + gap + cell('Gemini',  gemini.ok,  cc),
     sep,
     ' ' + ok + ' / ' + total + ' 解锁   ' + t
   ].join('\n');
