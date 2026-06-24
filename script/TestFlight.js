@@ -1,9 +1,6 @@
 /**
  * TestFlight 名额监控
- * 检测到有名额时立即发送通知
- *
- * 参数（通过模块 argument 传入）：
- *   $argument = "tLcYLZJV,b6X29Sva"  逗号分隔多个 ID
+ * 通过 $argument 接收参数：ids=ID1,ID2
  */
 
 var UA_LIST = [
@@ -16,65 +13,91 @@ function randomUA() {
   return UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
 }
 
-var ids = [];
+function run() {
+  // 解析 $argument，格式为 ids=ID1,ID2
+  var arg = (typeof $argument !== "undefined" && $argument) ? $argument.trim() : "";
 
-// 从 $argument 中解析 ID 列表
-if (typeof $argument !== "undefined" && $argument && $argument.trim() !== "") {
-  ids = $argument.trim().split(",").map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
-}
-
-if (ids.length === 0) {
-  $notification.post("TestFlight 监控", "未配置 ID", "请在模块参数中填写 TestFlight ID");
-  $done();
-  return;
-}
-
-var total = ids.length;
-var done_count = 0;
-
-function checkDone() {
-  done_count++;
-  if (done_count >= total) {
+  if (!arg) {
+    $notification.post("TestFlight 监控", "未收到参数", "argument 为空，请检查模块配置");
     $done();
+    return;
   }
-}
 
-ids.forEach(function(id) {
-  var url = "https://testflight.apple.com/join/" + id;
-  $httpClient.get({
-    url: url,
-    headers: {
-      "User-Agent": randomUA(),
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
-    },
-    timeout: 15
-  }, function(error, response, data) {
-    if (error) {
-      $notification.post("TestFlight 监控", "请求失败", "ID: " + id + "\n" + error);
-      return checkDone();
+  // 解析 ids=xxx 取出值
+  var idsRaw = arg;
+  if (arg.indexOf("ids=") === 0) {
+    idsRaw = arg.slice(4);
+  }
+
+  var ids = idsRaw.split(",").map(function(s) {
+    return s.trim();
+  }).filter(function(s) {
+    return s.length > 0;
+  });
+
+  if (ids.length === 0) {
+    $notification.post("TestFlight 监控", "ID 为空", "请在模块参数 ids 中填写 TestFlight ID");
+    $done();
+    return;
+  }
+
+  var total = ids.length;
+  var doneCount = 0;
+
+  function checkDone() {
+    doneCount++;
+    if (doneCount >= total) {
+      $done();
     }
+  }
 
-    if (response.status === 200) {
-      if (data.indexOf("itms-beta://") !== -1 || data.indexOf("join the beta") !== -1 || data.indexOf("要加入 Beta 版") !== -1) {
+  ids.forEach(function(id) {
+    var url = "https://testflight.apple.com/join/" + id;
+
+    $httpClient.get({
+      url: url,
+      headers: {
+        "User-Agent": randomUA(),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+      },
+      timeout: 15
+    }, function(error, response, data) {
+      if (error) {
+        $notification.post("TestFlight 监控", "请求失败", "ID: " + id + " | " + error);
+        checkDone();
+        return;
+      }
+
+      if (response.status !== 200) {
+        $notification.post("TestFlight 监控", "HTTP " + response.status, "ID: " + id);
+        checkDone();
+        return;
+      }
+
+      if (data.indexOf("itms-beta://") !== -1 ||
+          data.indexOf("join the beta") !== -1 ||
+          data.indexOf("要加入 Beta 版") !== -1) {
         $notification.post(
           "🎉 TestFlight 有名额！",
           "ID: " + id,
           "点击立即加入测试",
           { action: "open-url", url: url, sound: true }
         );
-      } else if (data.indexOf("This beta is full") !== -1 || data.indexOf("版本的测试员已满") !== -1) {
+      } else if (data.indexOf("This beta is full") !== -1 ||
+                 data.indexOf("版本的测试员已满") !== -1 ||
+                 data.indexOf("此 beta 版已额满") !== -1) {
         console.log("[TF] " + id + " 已满");
-      } else if (data.indexOf("This beta isn") !== -1 || data.indexOf("版本目前不接受") !== -1) {
+      } else if (data.indexOf("isn't accepting") !== -1 ||
+                 data.indexOf("版本目前不接受") !== -1) {
         console.log("[TF] " + id + " 不接受新成员");
       } else {
-        console.log("[TF] " + id + " 状态未知");
-        $notification.post("TestFlight 监控", "状态未知", "ID: " + id);
+        $notification.post("TestFlight 监控", "状态未知", "ID: " + id + " 请检查脚本是否需要更新");
       }
-    } else {
-      $notification.post("TestFlight 监控", "HTTP " + response.status, "ID: " + id);
-    }
 
-    checkDone();
+      checkDone();
+    });
   });
-});
+}
+
+run();
