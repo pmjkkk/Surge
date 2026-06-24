@@ -84,23 +84,23 @@ Promise.all([
   var ok = all.filter(Boolean).length;
   var total = all.length;
 
-  // 两列三行布局
-  // 左列：Netflix / ChatGPT / Claude
-  // 右列：Disney+ / YouTube / Gemini
+  var sep = '─────────────────────';
+
   function cell(name, ok, cc) {
-    var mark = ok ? '✓' : '✗';
-    var region = (ok && cc) ? ' ' + cc : '   ';
-    return name + region + ' ' + mark;
+    var mark = ok ? '● ' : '○ ';
+    var tag  = (ok && cc) ? cc : '--';
+    var pad  = (name + '       ').slice(0, 7);
+    return mark + pad + ' ' + tag;
   }
 
   var content = [
-    cc + '  ' + proxy.country,
-    '',
-    cell('Netflix', netflix.ok, cc) + '    ' + cell('Disney+', disney.ok, cc),
-    cell('ChatGPT', chatgpt.ok, chatgpt.cc || cc) + '    ' + cell('YouTube', proxy.ok, cc),
-    cell('Claude',  claude.ok,  cc) + '    ' + cell('Gemini',  gemini.ok,  cc),
-    '',
-    ok + ' / ' + total + '   ' + t
+    '◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知'),
+    sep,
+    cell('Netflix',  netflix.ok,  cc) + '   ' + cell('Disney+', disney.ok,  cc),
+    cell('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc) + '   ' + cell('YouTube', proxy.ok,   cc),
+    cell('Claude',   claude.ok,   cc) + '   ' + cell('Gemini',  gemini.ok,   cc),
+    sep,
+    ok + ' / ' + total + ' 解锁   ' + t
   ].join('\n');
 
   $done({
