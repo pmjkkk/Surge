@@ -72,6 +72,11 @@ function checkGemini() {
     .then(function(res) { return { ok: !res.error && res.status === 200 }; });
 }
 
+function checkTikTok() {
+  return fetch({ url: 'https://www.tiktok.com', timeout: 5000, headers: { 'User-Agent': UA } })
+    .then(function(res) { return { ok: !res.error && res.status === 200 }; });
+}
+
 function checkYouTube() {
   return fetch({ url: 'https://www.youtube.com/premium', timeout: 5000, headers: { 'User-Agent': UA } })
     .then(function(res) { return { ok: !res.error && res.status === 200 }; });
@@ -88,20 +93,20 @@ function line(name, ok, cc) {
 Promise.all([
   fetchProxy(),
   checkNetflix(),
-  checkDisney(),
+  checkTikTok(),
+  checkYouTube(),
   checkChatGPT(),
   checkClaude(),
-  checkGemini(),
-  checkYouTube()
+  checkGemini()
 ]).then(function(r) {
-  var proxy = r[0], netflix = r[1], disney = r[2];
-  var chatgpt = r[3], claude = r[4], gemini = r[5], youtube = r[6];
+  var proxy = r[0], netflix = r[1], tiktok = r[2], youtube = r[3];
+  var chatgpt = r[4], claude = r[5], gemini = r[6];
   var cc = proxy.cc;
 
   var now = new Date();
   var t = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
-  var all = [netflix.ok, disney.ok, youtube.ok, chatgpt.ok, claude.ok, gemini.ok];
+  var all = [netflix.ok, tiktok.ok, youtube.ok, chatgpt.ok, claude.ok, gemini.ok];
   var ok = all.filter(Boolean).length;
   var total = all.length;
 
@@ -141,9 +146,9 @@ Promise.all([
 
   var content = [
     firstLine,
-    ' ' + cell('Netflix',  netflix.ok,  cc)               + gap + cell('Disney+', disney.ok,  cc),
-    ' ' + cell('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc)  + gap + cell('YouTube', youtube.ok, cc),
-    ' ' + cell('Claude',   claude.ok,   cc)               + gap + cell('Gemini',  gemini.ok,  cc)
+    ' ' + cell('Netflix',  netflix.ok,  cc)               + gap + cell('ChatGPT', chatgpt.ok, chatgpt.cc || cc),
+    ' ' + cell('TikTok',   tiktok.ok,   cc)               + gap + cell('Claude',  claude.ok,  cc),
+    ' ' + cell('YouTube',  youtube.ok,  cc)               + gap + cell('Gemini',  gemini.ok,  cc)
   ].join('\n');
 
   $done({
