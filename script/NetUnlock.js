@@ -117,11 +117,10 @@ Promise.all([
   var gap = '   ';
 
   var content = [
-    ' ◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知'),
+    ' ◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知') + '   ' + ok + ' / ' + total + ' 解锁',
     ' ' + cell('Netflix',  netflix.ok,  cc)               + gap + cell('Disney+', disney.ok,  cc),
     ' ' + cell('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc)  + gap + cell('YouTube', youtube.ok, cc),
-    ' ' + cell('Claude',   claude.ok,   cc)               + gap + cell('Gemini',  gemini.ok,  cc),
-    ' ' + ok + ' / ' + total + ' 解锁   ' + t
+    ' ' + cell('Claude',   claude.ok,   cc)               + gap + cell('Gemini',  gemini.ok,  cc)
   ].join('\n');
 
   $done({
