@@ -101,7 +101,7 @@ Promise.all([
   var now = new Date();
   var t = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
-  var all = [proxy.ok, netflix.ok, disney.ok, chatgpt.ok, claude.ok, gemini.ok, youtube.ok];
+  var all = [netflix.ok, disney.ok, youtube.ok, chatgpt.ok, claude.ok, gemini.ok];
   var ok = all.filter(Boolean).length;
   var total = all.length;
 
