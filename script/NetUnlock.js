@@ -84,7 +84,7 @@ Promise.all([
   var ok = all.filter(Boolean).length;
   var total = all.length;
 
-  var sep = '─────────────────────';
+  var sep = ' ─────────────────────── ';
 
   function cell(name, ok, cc) {
     var mark = ok ? '● ' : '○ ';
@@ -93,14 +93,16 @@ Promise.all([
     return mark + pad + ' ' + tag;
   }
 
+  var gap = '   ';
+
   var content = [
-    '◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知'),
+    ' ◎  ' + (proxy.ok ? proxy.country + '  ' + cc : '未知'),
     sep,
-    cell('Netflix',  netflix.ok,  cc) + '   ' + cell('Disney+', disney.ok,  cc),
-    cell('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc) + '   ' + cell('YouTube', proxy.ok,   cc),
-    cell('Claude',   claude.ok,   cc) + '   ' + cell('Gemini',  gemini.ok,   cc),
+    ' ' + cell('Netflix',  netflix.ok,  cc)              + gap + cell('Disney+', disney.ok,  cc),
+    ' ' + cell('ChatGPT',  chatgpt.ok,  chatgpt.cc || cc) + gap + cell('YouTube', proxy.ok,   cc),
+    ' ' + cell('Claude',   claude.ok,   cc)              + gap + cell('Gemini',  gemini.ok,   cc),
     sep,
-    ok + ' / ' + total + ' 解锁   ' + t
+    ' ' + ok + ' / ' + total + ' 解锁   ' + t
   ].join('\n');
 
   $done({
