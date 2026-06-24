@@ -1,5 +1,5 @@
 /**
- * NetUnlock - 解锁检测
+ * NetUnlock - AI解锁检测
  * Surge Panel 极简版
  */
 
@@ -125,7 +125,7 @@ Promise.all([
   ].join('\n');
 
   $done({
-    title: '解锁检测',
+    title: 'AI解锁检测',
     content: content,
     style: ok === total ? 'good' : ok === 0 ? 'error' : 'info',
     icon: 'antenna.radiowaves.left.and.right',
@@ -133,5 +133,5 @@ Promise.all([
   });
 
 }).catch(function(e) {
-  $done({ title: '解锁检测', content: '检测出错\n' + e, style: 'error' });
+  $done({ title: 'AI解锁检测', content: '检测出错\n' + e, style: 'error' });
 });
