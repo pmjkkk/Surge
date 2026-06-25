@@ -1,0 +1,13 @@
+#!name=Telegram 跳转
+#!desc=将 t.me 链接重定向到你选择的 Telegram 客户端
+#!category=Utility
+#!author=panda𝕏 (Surge 转换)
+#!icon=https://iili.io/KQX347S.png
+#!arguments=CLIENT:Telegram
+#!arguments-desc=CLIENT: 目标客户端，可选 Telegram / Swiftgram / Turrit / iMe / Nicegram / Lingogram
+
+[Script]
+Telegram 链接重定向 = type=http-request,pattern=^https?://t\.me/.+,requires-body=false,max-size=0,timeout=10,script-path=https://raw.githubusercontent.com/pmjkkk/Surge/main/script/TgRedirect.js,argument={{{CLIENT}}}
+
+[MITM]
+hostname = %APPEND% t.me
