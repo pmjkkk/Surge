@@ -1,9 +1,4 @@
-#!name=Telegram 跳转
-#!desc=将 t.me 链接重定向到指定 Telegram 客户端
-#!category=Utility
-#!icon=https://iili.io/KQX347S.png
 #!arguments=CLIENT:Telegram
-#!arguments-desc=目标客户端：Telegram / Swiftgram / Turrit
 
 [Script]
 Telegram 链接重定向 = type=http-request,pattern=^https?://t\.me/.+,requires-body=false,max-size=0,timeout=10,script-path=https://raw.githubusercontent.com/pmjkkk/Surge/main/script/TgRedirect.js,argument={{{CLIENT}}}
