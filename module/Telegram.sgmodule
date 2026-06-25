@@ -1,3 +1,5 @@
+#!name=Telegram 跳转
+#!desc=将 t.me 链接重定向到指定 Telegram 客户端
 #!arguments=CLIENT:Telegram
 
 [Script]
